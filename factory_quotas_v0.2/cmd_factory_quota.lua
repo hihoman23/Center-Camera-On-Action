@@ -11,6 +11,8 @@ function widget:GetInfo()
     }
 end
 
+VFS.Include('luarules/configs/customcmds.h.lua')
+
 local maxBuildProg = 0.075 -- maximum build progress that gets replaced in a repeat queue
 local maxMetal = 500 -- maximum metal cost that gets replaced in a repeat queue(7.5% of a juggernaut is still over 2k metal)
 
@@ -45,7 +47,7 @@ local GetFactoryCommands = Spring.GetFactoryCommands
 local GetUnitDefID = Spring.GetUnitDefID
 -----
 
---include("luarules/configs/customcmds.h.lua")
+
 
 
 --------- quota logic -------------
@@ -136,12 +138,14 @@ local function fillQuotas()
                     quota[udefid] = nil
                 end
             end
-            local function isBetter(q1, q2, k1, k2)
-                return (table.length((builtUnits[factID] or {})[k1] or {})/q1) < (table.length((builtUnits[factID] or {})[k2] or {})/q2)
-            end
-            local quotaNum, uDefID = findMin(quota, isBetter)
-            if quotaNum > table.length((builtUnits[factID] or {})[uDefID] or {}) then
-                insertToFactQ(factID, -uDefID, {}, {"alt"})
+            if table.length(quota)>0 then
+                local function isBetter(q1, q2, k1, k2)
+                    return (table.length((builtUnits[factID] or {})[k1] or {})/q1) < (table.length((builtUnits[factID] or {})[k2] or {})/q2)
+                end
+                local quotaNum, uDefID = findMin(quota, isBetter)
+                if quotaNum > table.length((builtUnits[factID] or {})[uDefID] or {}) then
+                    insertToFactQ(factID, -uDefID, {}, {"alt"})
+                end
             end
         end
     end
@@ -225,6 +229,7 @@ function widget:Initialize()
     WG.Quotas.getUnitAmount = function(factID, unitDefID)
         return table.length((builtUnits[factID] or {})[unitDefID])
     end
+
 end
 
 function widget:Shutdown()
