@@ -1,3 +1,4 @@
+
 function widget:GetInfo()
     return {
       name = "Factory Quotas",
@@ -9,6 +10,9 @@ function widget:GetInfo()
       enabled = true
     }
 end
+
+local maxBuildProg = 0.075 -- maximum build progress that gets replaced in a repeat queue
+local maxMetal = 500 -- maximum metal cost that gets replaced in a repeat queue(7.5% of a juggernaut is still over 2k metal)
 
 local quotas = {} -- {[factID] = {[unitDefID] = amount, ...}, ...}
 
@@ -40,6 +44,8 @@ local GiveOrderToUnit = Spring.GiveOrderToUnit
 local GetFactoryCommands = Spring.GetFactoryCommands
 local GetUnitDefID = Spring.GetUnitDefID
 -----
+
+--include("luarules/configs/customcmds.h.lua")
 
 
 --------- quota logic -------------
@@ -111,7 +117,7 @@ local function insertToFactQ(...)
     local insertnormally = true
     if targetID and Spring.GetUnitStates(factID)["repeat"] then
         local _, _, _, _, buildProgress = Spring.GetUnitHealth(targetID)
-        if buildProgress < 0.075 and metalcosts[-currCmd] and (buildProgress * metalcosts[-currCmd]) < 500 then -- 7.5 % is the most that it is willing to sacrifice, and maximally 500 metal
+        if buildProgress < maxBuildProg and metalcosts[-currCmd] and (buildProgress * metalcosts[-currCmd]) < maxMetal then -- 7.5 % is the most that it is willing to sacrifice, and maximally 500 metal
             insertnormally = false
         end
     end
@@ -125,6 +131,11 @@ end
 local function fillQuotas()
     for factID, quota in pairs(quotas) do
         if isFactoryUsable(factID) then
+            for udefid, num in pairs(quota) do
+                if num == 0 then
+                    quota[udefid] = nil
+                end
+            end
             local function isBetter(q1, q2, k1, k2)
                 return (table.length((builtUnits[factID] or {})[k1] or {})/q1) < (table.length((builtUnits[factID] or {})[k2] or {})/q2)
             end
@@ -143,15 +154,16 @@ function widget:GameFrame(n)
 end
 
 
+
 function widget:UnitCreated(unitID, unitDefID, unitTeam, builderID)
-    if WG["gridmenu"] and WG["gridmenu"].forceReload then
-        WG["gridmenu"].forceReload()
-    end
     if builderID and unitTeam == myTeam and factoryDefIDs[GetUnitDefID(builderID)] then
         builtUnits[builderID] = builtUnits[builderID] or {}
         builtUnits[builderID][unitDefID] = builtUnits[builderID][unitDefID] or {}
         builtUnits[builderID][unitDefID][unitID] = true
         unitFacts[unitID] = builderID
+        if WG["gridmenu"] and WG["gridmenu"].forceReload then
+            WG["gridmenu"].forceReload()
+        end
     end
 end
 
